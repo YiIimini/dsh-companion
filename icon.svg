@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="dsh-companion">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7db8fb"/>
+      <stop offset="1" stop-color="#2f6fe4"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0d1420"/>
+  <path d="M40 32 L56 22 L53 32 L56 42 Z" fill="#1d4ed8"/>
+  <ellipse cx="30" cy="33" rx="20" ry="15" fill="url(#body)"/>
+  <ellipse cx="27" cy="27" rx="11" ry="6" fill="#bfe0ff" opacity=".55"/>
+  <circle cx="22" cy="31" r="2.6" fill="#0b1220"/>
+  <circle cx="33" cy="31" r="2.6" fill="#0b1220"/>
+  <path d="M24 39 q6 4 11 0" stroke="#0b1220" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="47" cy="14" r="3" fill="#7dd3fc"/>
+  <circle cx="52" cy="9" r="1.8" fill="#7dd3fc" opacity=".8"/>
+</svg>
