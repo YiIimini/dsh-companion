@@ -10,20 +10,24 @@
  *      copy). Reads self-heal: a missing, hand-edited, oversized or malformed file
  *      never throws and never propagates junk — every field goes through the same
  *      sanitizer the HTTP layer uses.
- *   2. THE PRESENCE SIGNAL. `session/event` fires for every agent event. We do not
- *      interpret it: the mere fact that it fired means work is happening, so we
- *      stamp `activityAt`. The client turns that stamp into a mood. That is the
- *      whole of the "state awareness" the old plugins each reimplemented.
- *   3. TWO ROUTES. `/dsh-companion/status.json` (what this build is) and
- *      `/dsh-companion/state.json` (read + write). No asset route: every character
- *      is inline SVG in the client half, so there is no file a URL could name.
+ *   2. THE SKINS. `$DSH_HOME/companion/skins/` is a user-owned directory of images.
+ *      Drop a PNG there and it becomes a character — that is the escape hatch for
+ *      "the bundled artwork is not to my taste", and it costs the bundle no bytes
+ *      and no licence. Only names matching SKIN_PATTERN are served, the resolved
+ *      real path must stay inside that directory (so a symlink cannot walk out),
+ *      and the file size is capped.
+ *   3. THE PRESENCE SIGNAL. `session/event` fires for every agent event. We do not
+ *      interpret it: the fact that it fired means work is happening, so we stamp
+ *      `activityAt`. The client turns that stamp into a mood.
+ *   4. THREE ROUTES under `/dsh-companion`: `status.json`, `state.json` (read +
+ *      write under it), and `skins/` (list + one image).
  *
  * Deliberately dependency-free and SDK-free: no build step, no imports beyond node:.
  */
 
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 
 export const name = 'dsh-companion'
 
@@ -33,6 +37,8 @@ export const inject = ['webServer']
 const BASE_ROUTE = '/dsh-companion'
 const STATUS_ROUTE = `${BASE_ROUTE}/status.json`
 const STATE_ROUTE = `${BASE_ROUTE}/state.json`
+const SKINS_ROUTE = `${BASE_ROUTE}/skins.json`
+const SKIN_PREFIX = `${BASE_ROUTE}/skins`
 /**
  * The write path hangs UNDER the read path on purpose: the webserver matches a
  * registered prefix with `pathname === prefix || pathname.startsWith(prefix + '/')`,
@@ -41,17 +47,20 @@ const STATE_ROUTE = `${BASE_ROUTE}/state.json`
 const WRITE_SUFFIX = '/state'
 const WRITE_ROUTE = `${STATE_ROUTE}${WRITE_SUFFIX}`
 
-/** Everything the companion remembers lives under these two names. */
+/** Everything the companion remembers lives under these names. */
 const STATE_DIR = 'companion'
 const STATE_FILE = 'state.json'
+const SKINS_DIR = 'skins'
 
 /** Refuse to read a state file, or accept a body, bigger than this. */
 const MAX_BYTES = 8192
 
+/** A skin image is artwork, not a database; 4 MiB is already generous for one. */
+const MAX_SKIN_BYTES = 4 * 1024 * 1024
+
 /** The label under the character. A name, not a document. */
 const MAX_NAME = 24
 
-/** Fractional window coordinates are pointless and invite float drift. */
 const COORD_MIN = 0
 const COORD_MAX = 100000
 
@@ -61,15 +70,30 @@ const ACTIVE_WINDOW_MS = 6000
 /**
  * The characters this build ships artwork for.
  *
- * An ALLOW-LIST, and that is the entire validation: an id is only ever compared
- * against these strings, never turned into a path or a lookup key.
+ * These are BUILT-IN ids: the client draws them as inline SVG. A user skin is
+ * addressed as `skin:<file name>` and served from disk instead.
  */
-const CHARACTER_IDS = Object.freeze(['fish', 'whale', 'pixel'])
-const DEFAULT_CHARACTER = 'fish'
+const BUILTIN_CHARACTERS = Object.freeze(['whale', 'fish', 'pixel'])
+const DEFAULT_CHARACTER = 'whale'
+
+/**
+ * What a skin file name may look like. The pattern is the first line of defence:
+ * no slash, no dot-dot, no control characters, one known image extension.
+ */
+const SKIN_PATTERN = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,60}\.(png|webp|gif|svg|jpg|jpeg)$/
+
+const SKIN_TYPES = Object.freeze({
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+})
 
 const DEFAULT_NAME = '小蓝'
 
-/** Epoch ms may not sit more than a day in the future (clock skew) or the past century. */
+/** Epoch ms may not sit more than a day in the future (clock skew). */
 const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000
 
 /** The complete, honest default state. Every field the file may carry. */
@@ -96,8 +120,23 @@ function statePath() {
   return join(dshHome(), STATE_DIR, STATE_FILE)
 }
 
+function skinsPath() {
+  return join(dshHome(), STATE_DIR, SKINS_DIR)
+}
+
 function clampInt(value, min, max) {
   return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+/** A character id: a built-in name, or `skin:<safe file name>`. */
+function normalizeCharacter(value) {
+  if (typeof value !== 'string') return null
+  if (BUILTIN_CHARACTERS.includes(value)) return value
+  if (value.startsWith('skin:')) {
+    const file = value.slice('skin:'.length)
+    if (SKIN_PATTERN.test(file)) return `skin:${file}`
+  }
+  return null
 }
 
 /**
@@ -159,10 +198,10 @@ function sanitizeState(raw, { strict = false } = {}) {
   }
 
   if (Object.prototype.hasOwnProperty.call(source, 'character')) {
-    const value = source.character
-    if (typeof value === 'string' && CHARACTER_IDS.includes(value)) out.character = value
+    const normalized = normalizeCharacter(source.character)
+    if (normalized !== null) out.character = normalized
     else {
-      issues.push(`character: must be one of ${CHARACTER_IDS.join(', ')}`)
+      issues.push(`character: must be a built-in (${BUILTIN_CHARACTERS.join(', ')}) or skin:<name>.<png|webp|gif|svg|jpg>`)
       if (strict) return { state: out, issues, ok: false }
     }
   }
@@ -234,6 +273,69 @@ async function readState() {
   return { exists: true, state, issues, healed: issues.length > 0 }
 }
 
+/**
+ * List the user's skin files.
+ *
+ * Missing directory is not an error — it is the normal first run. Anything that is
+ * not a regular file, or whose size is zero or over the cap, is skipped silently:
+ * this list feeds a menu, and a broken file belongs in the log, not in the UI.
+ */
+async function listSkins() {
+  const dir = skinsPath()
+  let names
+  try {
+    names = await readdir(dir)
+  } catch (cause) {
+    if (cause && cause.code === 'ENOENT') return { dir, skins: [] }
+    return { dir, skins: [], issues: [`skins directory unreadable (${String(cause?.message ?? cause)})`] }
+  }
+  const skins = []
+  for (const entry of names) {
+    if (!SKIN_PATTERN.test(entry)) continue
+    try {
+      const info = await stat(join(dir, entry))
+      if (!info.isFile() || info.size === 0 || info.size > MAX_SKIN_BYTES) continue
+      skins.push({ file: entry, id: `skin:${entry}`, bytes: info.size, modifiedAt: info.mtimeMs })
+    } catch {
+      /* a file that vanished between readdir and stat is not a skin */
+    }
+  }
+  skins.sort((a, b) => a.file.localeCompare(b.file))
+  return { dir, skins }
+}
+
+/**
+ * Resolve one skin to bytes, or to a refusal.
+ *
+ * The pattern check happens twice on purpose — once here and once in the route —
+ * and the REAL path is compared to the REAL directory, so a symlink planted inside
+ * `skins/` cannot redirect this read outside it.
+ */
+async function readSkin(file) {
+  if (typeof file !== 'string' || !SKIN_PATTERN.test(file)) return { ok: false, status: 404 }
+  const dir = skinsPath()
+  const target = join(dir, file)
+  let realDir
+  let realTarget
+  try {
+    realDir = await realpath(dir)
+    realTarget = await realpath(target)
+  } catch {
+    return { ok: false, status: 404 }
+  }
+  if (!realTarget.startsWith(realDir + '/')) return { ok: false, status: 404 }
+  try {
+    const info = await stat(realTarget)
+    if (!info.isFile()) return { ok: false, status: 404 }
+    if (info.size === 0) return { ok: false, status: 404 }
+    if (info.size > MAX_SKIN_BYTES) return { ok: false, status: 413 }
+    const bytes = await readFile(realTarget)
+    return { ok: true, bytes, type: SKIN_TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream', mtimeMs: info.mtimeMs }
+  } catch {
+    return { ok: false, status: 500 }
+  }
+}
+
 function sendJson(res, payload, status = 200) {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -264,7 +366,7 @@ async function readBody(req) {
 }
 
 /**
- * Apply: wire the presence signal, then register the two routes.
+ * Apply: wire the presence signal, then register the routes.
  *
  * A failure while REGISTERING is the plugin boundary: report it and stop, never let
  * it escape into the host boot.
@@ -272,7 +374,6 @@ async function readBody(req) {
 export function apply(ctx) {
   /** Epoch ms of the last agent event, or 0 for "nothing has happened yet". */
   let activityAt = 0
-  /** Epoch ms when the companion was last served a state read. Diagnostic only. */
   let servedAt = 0
 
   /**
@@ -297,21 +398,47 @@ export function apply(ctx) {
     const { pathname } = new URL(req.url ?? '/', 'http://localhost')
     if (pathname !== STATUS_ROUTE) return sendText(res, 404, 'dsh-companion: unknown status path\n')
     const read = await readState().catch((cause) => ({ exists: false, state: { ...DEFAULT_STATE }, issues: [String(cause?.message ?? cause)], healed: true }))
+    const listing = await listSkins().catch(() => ({ dir: skinsPath(), skins: [] }))
     return sendJson(res, {
       plugin: name,
-      version: '1.0.0',
-      characters: CHARACTER_IDS,
+      version: '2.0.0',
+      builtinCharacters: BUILTIN_CHARACTERS,
       defaultCharacter: DEFAULT_CHARACTER,
+      skins: listing.skins,
+      skinsDir: listing.dir,
+      skinsIssues: listing.issues ?? [],
       moods: ['idle', 'working'],
       activeWindowMs: ACTIVE_WINDOW_MS,
       services: ['webServer'],
-      routes: [STATUS_ROUTE, STATE_ROUTE, WRITE_ROUTE],
+      routes: [STATUS_ROUTE, STATE_ROUTE, WRITE_ROUTE, SKINS_ROUTE, `${SKIN_PREFIX}/<file>`],
       stateFile: statePath(),
       stateExists: read.exists,
       stateIssues: read.issues,
       activityAt,
       mood: moodNow(),
     })
+  }
+
+  const skins = async (req, res) => {
+    const { pathname } = new URL(req.url ?? '/', 'http://localhost')
+    if (pathname === SKINS_ROUTE) {
+      const listing = await listSkins()
+      return sendJson(res, { dir: listing.dir, skins: listing.skins, issues: listing.issues ?? [] })
+    }
+    if (!pathname.startsWith(`${SKIN_PREFIX}/`)) return sendText(res, 404, 'dsh-companion: unknown skins path\n')
+    const file = decodeURIComponent(pathname.slice(SKIN_PREFIX.length + 1))
+    const served = await readSkin(file)
+    if (!served.ok) {
+      // A heuristically cached 404 would keep 404ing after the user fixes the file.
+      return sendText(res, served.status, served.status === 404 ? 'dsh-companion: no such skin\n' : 'dsh-companion: skin unavailable\n')
+    }
+    res.writeHead(200, {
+      'content-type': served.type,
+      'content-length': String(served.bytes.length),
+      'cache-control': 'no-cache',
+      'x-skin-mtime': String(Math.round(served.mtimeMs)),
+    })
+    res.end(served.bytes)
   }
 
   const state = async (req, res) => {
@@ -342,7 +469,6 @@ export function apply(ctx) {
     }
 
     if (pathname === STATE_ROUTE) {
-      // Writing to the read path is the mistake the pair of routes exists to avoid.
       res.writeHead(405, { allow: 'GET, HEAD', 'content-type': 'text/plain; charset=utf-8' })
       return res.end('dsh-companion: use POST /state.json/state to change the state\n')
     }
@@ -388,24 +514,39 @@ export function apply(ctx) {
     () => ctx.webServer.register({ kind: 'prefix', path: STATE_ROUTE, handler: state }),
     'dsh-companion: state route',
   )
+  ctx.effect(
+    () => ctx.webServer.register({ kind: 'prefix', path: SKINS_ROUTE, handler: skins }),
+    'dsh-companion: skins list',
+  )
+  ctx.effect(
+    () => ctx.webServer.register({ kind: 'prefix', path: SKIN_PREFIX, handler: skins }),
+    'dsh-companion: skins images',
+  )
 }
 
 /** Exported for tests and for anyone scripting the state file by hand. */
 export const limits = Object.freeze({
   MAX_BYTES,
+  MAX_SKIN_BYTES,
   MAX_NAME,
   MAX_CLOCK_SKEW_MS,
   ACTIVE_WINDOW_MS,
   STATE_DIR,
   STATE_FILE,
+  SKINS_DIR,
   DEFAULT_STATE,
   DEFAULT_NAME,
-  CHARACTER_IDS,
+  BUILTIN_CHARACTERS,
   DEFAULT_CHARACTER,
+  SKIN_PATTERN,
   FIELD_NAMES,
   baseRoute: BASE_ROUTE,
-  routes: { STATUS_ROUTE, STATE_ROUTE, WRITE_ROUTE },
+  routes: { STATUS_ROUTE, STATE_ROUTE, WRITE_ROUTE, SKINS_ROUTE, SKIN_PREFIX },
   sanitizeState,
+  normalizeCharacter,
   dshHome,
   statePath,
+  skinsPath,
+  listSkins,
+  readSkin,
 })

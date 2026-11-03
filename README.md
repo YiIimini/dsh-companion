@@ -13,14 +13,15 @@ DSH 生态里的宠物插件已经足够多了，而它们各自只做对一半�
 |---|---|---|
 | `dsh-pet`（大肥鱼） | 真的按会话事件换姿态 | 只有一个角色，状态机塞在 host 里 |
 | `dsh-bigfish` | 角色包可替换（rig + 关键帧） | 引擎重、资产多，改角色要写 rig |
-| `dsh-pet-indesktop` | 位置持久化 + 8 套皮肤，纯 SVG 轻量 | 客户端 inject 写了不存在的包名，`slot occupant active: false`，画不出来 |
+| `dsh-pet-indesktop` | 位置持久化 + 8 套皮肤，纯 SVG 轻量 | 客户端 inject 写了不存在的包名，`slot occupant active: false`，画不出来（那些皮肤图现在可以原样搬进本插件的 skins 目录） |
 | `dsh-whale-widget` / wallpaper-engine mascot | 余额、气泡、玻璃质感 | 是挂件，不是会动的伙伴 |
 
 **dsh-companion 把这四件事拆开重新组合**：一个很小的核心（状态 + 存在感 + 两个座位），角色是纯内联 SVG（换角色不改代码），位置真的记得住，状态来自 host 的真实 `session/event` 而不是客户端猜。
 
 ## 它做什么
 
-- **三个内置角色**：大肥鱼（fish）、鲸鱼娘（whale）、像素鱼（pixel）。纯内联 SVG，没有任何图片资产、没有外部请求。
+- **三个内置角色**：团子鲸（whale，默认）、大肥鱼（fish）、像素鱼（pixel）。纯内联 SVG，没有任何图片资产、没有外部请求。内置画像只求"在 112px 下干净可辨"——想要更好看的立绘，用下面的图片皮肤。
+- **图片皮肤（v2 新增）**：把任意 PNG / WebP / GIF / SVG 丢进 `$DSH_HOME/companion/skins/`，侧栏 `伙伴` 菜单里立刻就能选。图片由 host 的 allow-list 路由提供：文件名必须匹配白名单正则、解析后的真实路径必须仍在 skins 目录内（挡符号链接逃逸）、单文件上限 4 MiB。想用哪张图由你决定，插件不替你的审美做主。
 - **拖到哪记住哪**：位置写进 `$DSH_HOME/companion/state.json`（原子写：临时文件 + 同目录 rename），刷新、重启、换机器都能恢复；窗口变小会自动把宠物挪回可见区域。
 - **存在感来自真实事件**：host 侧 `ctx.on('session/event')` 每来一个事件就盖一个时间戳，客户端只读 `mood`。**活干着 → 摇摆加速 + WORKING 角标；闲下来 → 慢呼吸。** 客户端不推导 agent 状态。
 - **点一下说话**：每个角色有自己的台词池，点击出气泡，不刷屏（4.2s 自动消失）。
@@ -51,7 +52,8 @@ plugin_manager install_bundle target=/绝对路径/dsh-companion
 | 拖动 | 移动位置，松手后 450ms 落盘 |
 | 单击 | 说一句台词（不移动） |
 | 侧栏 `伙伴` → 显示/隐藏伙伴 | 收起或放回宠物 |
-| 侧栏 `伙伴` → 大肥鱼 / 鲸鱼娘 / 像素鱼 | 换角色，立即生效并记住 |
+| 侧栏 `伙伴` → 团子鲸 / 大肥鱼 / 像素鱼 | 换内置角色，立即生效并记住 |
+| 侧栏 `伙伴` → 我的皮肤 → 某个文件 | 换成 `~/.dsh/companion/skins/` 里的图；加载失败会自动退回内置角色 |
 
 ## 状态文件
 
@@ -63,11 +65,13 @@ plugin_manager install_bundle target=/绝对路径/dsh-companion
   "visible": true,
   "x": 1180,
   "y": 640,
-  "character": "fish",
+  "character": "skin:my-whale.png",
   "name": "小蓝",
   "clicks": 3
 }
 ```
+
+`character` 取内置名（`whale` / `fish` / `pixel`）或 `skin:<文件名>`。
 
 `x`/`y` 为 `null` 表示"还没拖过，用默认右下角"。手改坏了不会崩：读取时逐字段净化，超范围夹回、类型不对回落默认，并把修好的状态写回去。
 
@@ -78,6 +82,8 @@ plugin_manager install_bundle target=/绝对路径/dsh-companion
 | `GET` | `/dsh-companion/status.json` | 构建信息、角色白名单、mood、状态文件路径与自愈记录 |
 | `GET` | `/dsh-companion/state.json` | 当前状态 + `activityAt` + `mood` |
 | `POST` | `/dsh-companion/state.json/state` | 局部更新（严格校验：字段类型不对返回 400，不会静默接受） |
+| `GET` | `/dsh-companion/skins.json` | 列出 skins 目录里可用的皮肤 |
+| `GET` | `/dsh-companion/skins/<file>` | 取一张皮肤图（白名单 + realpath 边界 + 4 MiB 上限） |
 
 写路由挂在读路由下面（`/state.json/state`），因为 webServer 按前缀匹配：一个注册点同时答读和写，后缀由常量派生而不是手打两次。请求体上限 8 KiB，角色 id 只做白名单比较，永远不进文件路径。
 
