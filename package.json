@@ -1,6 +1,6 @@
 {
   "name": "dsh-companion",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "One desk companion for DeepSeek Harness, replacing five overlapping pet plugins: three built-in SVG characters plus drop-in image skins, a durable position, a presence driven by real session events, and an optional companion agent preset. 统一桌宠：内置三角色 + 拖入自己的图片当皮肤，记住位置，按真实会话事件切换状态。",
   "keywords": [
     "dsh",

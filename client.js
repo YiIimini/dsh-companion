@@ -43,9 +43,9 @@ window.__ModuleLoader__.load({
     const SAVE_DEBOUNCE_MS = 450
 
     const BUILTINS = [
-      { id: 'whale', label: '团子鲸' },
-      { id: 'fish', label: '大肥鱼' },
-      { id: 'pixel', label: '像素鱼' },
+      { id: 'whale', label: '像素鲸' },
+      { id: 'fish', label: '像素肥鱼' },
+      { id: 'pixel', label: '小方块' },
     ]
 
     const LINES = {
@@ -72,9 +72,9 @@ window.__ModuleLoader__.load({
 .dshc-stage{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;cursor:grab;transform-origin:50% 90%;animation:dshc-bob 3.6s ease-in-out infinite}
 .dshc-root[data-dragging="true"] .dshc-stage{cursor:grabbing;animation-play-state:paused}
 .dshc-root[data-mood="working"] .dshc-stage{animation:dshc-bob 1.5s ease-in-out infinite}
-.dshc-art{width:104px;height:104px;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.28));transition:transform .25s ease}
+.dshc-art{width:104px;height:96px;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,.28));transition:transform .25s ease}
 .dshc-root[data-mood="working"] .dshc-art{transform:scale(1.04)}
-.dshc-img{object-fit:contain;object-position:center bottom}
+.dshc-img{object-fit:contain;object-position:center bottom;height:104px}
 .dshc-sway{animation:dshc-sway 4.8s ease-in-out infinite;transform-origin:50% 90%}
 .dshc-root[data-mood="working"] .dshc-sway{animation-duration:1.9s}
 .dshc-bubble{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);max-width:230px;padding:7px 11px;border-radius:12px;font-size:12px;line-height:1.45;white-space:nowrap;color:var(--dsw-alias-label-primary,#eef2f7);background:var(--dsw-alias-bg-elevated,#1b2130);border:1px solid var(--dsw-alias-border-secondary,rgba(255,255,255,.14));box-shadow:0 8px 22px rgba(0,0,0,.32);pointer-events:none;opacity:0;transition:opacity .18s ease, transform .18s ease}
@@ -219,117 +219,91 @@ window.__ModuleLoader__.load({
 
     /* ── artwork ───────────────────────────────────────────────────────────── */
 
-    function WhaleSVG() {
-      return h(
-        'svg',
-        { className: 'dshc-art', viewBox: '0 0 120 120', role: 'img', 'aria-label': '团子鲸' },
-        h(
-          'defs',
-          null,
-          h(
-            'radialGradient',
-            { id: 'dshc-wb', cx: '.36', cy: '.26', r: '.92' },
-            h('stop', { offset: '0', stopColor: '#b6e0ff' }),
-            h('stop', { offset: '.5', stopColor: '#57a4f8' }),
-            h('stop', { offset: '1', stopColor: '#2a62b6' }),
-          ),
-          h(
-            'linearGradient',
-            { id: 'dshc-wbelly', x1: '0', y1: '0', x2: '0', y2: '1' },
-            h('stop', { offset: '0', stopColor: '#ffffff', stopOpacity: '.92' }),
-            h('stop', { offset: '1', stopColor: '#c9e3ff', stopOpacity: '.72' }),
-          ),
-        ),
-        h('path', { d: 'M60 32c-3-6-2-11 1-14', stroke: '#a9dcff', strokeWidth: 3, strokeLinecap: 'round', fill: 'none', opacity: '.9' }),
-        h('circle', { cx: 66, cy: 13, r: 3, fill: '#cdeaff' }),
-        h('circle', { cx: 56, cy: 17, r: 2.2, fill: '#cdeaff', opacity: '.85' }),
-        h('circle', { cx: 72, cy: 21, r: 1.8, fill: '#cdeaff', opacity: '.7' }),
-        h('path', { d: 'M26 62c-13-13-23-10-23 2 0 11 10 17 20 10-2 11 5 17 12 13 7-4 4-14-2-20 4-1 6-5 3-8-2-3-6-2-10 3z', fill: '#3d8bea' }),
-        h('ellipse', { cx: 65, cy: 68, rx: 42, ry: 31, fill: 'url(#dshc-wb)' }),
-        h('ellipse', { cx: 67, cy: 79, rx: 30, ry: 17, fill: 'url(#dshc-wbelly)' }),
-        h('path', { d: 'M57 38c3-8 10-10 14-5 3 4 1 8-2 10z', fill: '#2f6fd0' }),
-        h('path', { d: 'M41 76c-9 1-15 7-14 13 7 3 15-3 18-11z', fill: '#3d8bea' }),
-        h('path', { d: 'M91 74c8 0 13 5 12 10-6 3-13-2-15-8z', fill: '#2f6fd0', opacity: '.75' }),
-        h('circle', { cx: 53, cy: 62, r: 9.2, fill: '#ffffff' }),
-        h('circle', { cx: 77, cy: 62, r: 9.2, fill: '#ffffff' }),
-        h('circle', { cx: 54.4, cy: 63, r: 5.4, fill: '#1e2f47' }),
-        h('circle', { cx: 78.4, cy: 63, r: 5.4, fill: '#1e2f47' }),
-        h('circle', { cx: 52.2, cy: 60.4, r: 2.1, fill: '#ffffff' }),
-        h('circle', { cx: 76.2, cy: 60.4, r: 2.1, fill: '#ffffff' }),
-        h('circle', { cx: 56.8, cy: 66.2, r: 1.1, fill: '#a8d4ff', opacity: '.9' }),
-        h('circle', { cx: 80.8, cy: 66.2, r: 1.1, fill: '#a8d4ff', opacity: '.9' }),
-        h('ellipse', { cx: 44, cy: 73, rx: 6.2, ry: 3.6, fill: '#ff9fb4', opacity: '.45' }),
-        h('ellipse', { cx: 86, cy: 73, rx: 6.2, ry: 3.6, fill: '#ff9fb4', opacity: '.45' }),
-        h('path', { d: 'M61 74c2 3 5 3 7 0', stroke: '#1e2f47', strokeWidth: 2.2, fill: 'none', strokeLinecap: 'round' }),
-        h('ellipse', { cx: 79, cy: 47, rx: 15, ry: 7, fill: '#ffffff', opacity: '.26', transform: 'rotate(-18 79 47)' }),
-        h('ellipse', { cx: 45, cy: 52, rx: 6.5, ry: 3.6, fill: '#ffffff', opacity: '.18', transform: 'rotate(18 45 52)' }),
-      )
+    /* Block-built characters: a fixed 200x150 grid, integer coordinates, hard
+     * edges. Two flat colors plus a belly and an accent per character — that is
+     * what keeps a 104px desktop pet readable instead of a smudge of gradients. */
+    const TINT = {
+      sea: '#3b82f6',
+      seaDark: '#2563eb',
+      seaDeep: '#1d4ed8',
+      seaBelly: '#eaf4ff',
+      mint: '#34d399',
+      mintDark: '#059669',
+      mintDeep: '#047857',
+      mintBelly: '#ecfdf5',
+      sky: '#7dd3fc',
+      skyDark: '#0ea5e9',
+      skyBelly: '#e8fbff',
+      ink: '#0b1220',
+      blush: '#ff9fb4',
+      water: '#a9dcff',
     }
 
-    function FishSVG() {
-      return h(
-        'svg',
-        { className: 'dshc-art', viewBox: '0 0 120 120', role: 'img', 'aria-label': '大肥鱼' },
-        h(
-          'defs',
-          null,
-          h(
-            'radialGradient',
-            { id: 'dshc-fb', cx: '.38', cy: '.3', r: '.9' },
-            h('stop', { offset: '0', stopColor: '#9fd3ff' }),
-            h('stop', { offset: '.55', stopColor: '#4b93f0' }),
-            h('stop', { offset: '1', stopColor: '#2456a8' }),
-          ),
-          h(
-            'linearGradient',
-            { id: 'dshc-fbelly', x1: '0', y1: '0', x2: '0', y2: '1' },
-            h('stop', { offset: '0', stopColor: '#ffffff', stopOpacity: '.98' }),
-            h('stop', { offset: '1', stopColor: '#d3e8ff', stopOpacity: '.9' }),
-          ),
-        ),
-        h('path', { d: 'M24 62c-14-14-24-10-24 2 0 12 11 18 21 10-2 12 6 18 13 14 7-4 4-14-2-21 5-1 6-5 3-9-2-3-6-2-11 4z', fill: '#3a86e6' }),
-        h('ellipse', { cx: 66, cy: 66, rx: 43, ry: 33, fill: 'url(#dshc-fb)' }),
-        h('ellipse', { cx: 68, cy: 79, rx: 28, ry: 16, fill: 'url(#dshc-fbelly)' }),
-        h('path', { d: 'M54 35c2-9 10-12 15-6 4 5 2 9-2 11z', fill: '#2c69c6' }),
-        h('path', { d: 'M58 96c1 6 6 9 11 8 4-1 3-6-1-9z', fill: '#2c69c6', opacity: '.85' }),
-        h('path', { d: 'M42 72c-9 0-15 6-14 12 7 3 15-2 18-10z', fill: '#3a86e6' }),
-        h('circle', { cx: 56, cy: 60, r: 9.6, fill: '#ffffff' }),
-        h('circle', { cx: 80, cy: 60, r: 9.6, fill: '#ffffff' }),
-        h('circle', { cx: 57.4, cy: 61, r: 5.6, fill: '#1e2f47' }),
-        h('circle', { cx: 81.4, cy: 61, r: 5.6, fill: '#1e2f47' }),
-        h('circle', { cx: 55.2, cy: 58.4, r: 2.2, fill: '#ffffff' }),
-        h('circle', { cx: 79.2, cy: 58.4, r: 2.2, fill: '#ffffff' }),
-        h('ellipse', { cx: 46, cy: 71, rx: 6.4, ry: 3.8, fill: '#ff9fb4', opacity: '.42' }),
-        h('ellipse', { cx: 90, cy: 71, rx: 6.4, ry: 3.8, fill: '#ff9fb4', opacity: '.42' }),
-        h('ellipse', { cx: 68, cy: 76, rx: 3.2, ry: 3.8, fill: '#1e2f47' }),
-        h('ellipse', { cx: 68, cy: 77.4, rx: 1.6, ry: 1.6, fill: '#ff9fb4', opacity: '.85' }),
-        h('ellipse', { cx: 82, cy: 45, rx: 14, ry: 6.5, fill: '#ffffff', opacity: '.24', transform: 'rotate(-16 82 45)' }),
-      )
+    /* Each entry: [x, y, w, h, tint, opacity?] — all in the 200x150 grid. */
+    const BLOCKS = {
+      whale: [
+        [118, 8, 10, 26, 'water'],
+        [102, 16, 10, 18, 'water', 0.85],
+        [134, 16, 10, 18, 'water', 0.85],
+        [10, 70, 36, 26, 'seaDeep'],
+        [30, 54, 22, 58, 'seaDeep'],
+        [45, 42, 132, 86, 'sea'],
+        [105, 26, 36, 16, 'seaDark'],
+        [55, 98, 112, 30, 'seaBelly'],
+        [72, 86, 18, 26, 'seaDark'],
+        [88, 60, 20, 20, 'ink'],
+        [93, 65, 7, 7, '#ffffff'],
+        [62, 92, 18, 10, 'blush', 0.8],
+        [120, 104, 28, 6, 'ink', 0.5],
+      ],
+      fish: [
+        [12, 66, 34, 30, 'mintDeep'],
+        [32, 52, 20, 58, 'mintDeep'],
+        [46, 46, 128, 78, 'mint'],
+        [56, 96, 106, 28, 'mintBelly'],
+        [70, 86, 16, 24, 'mintDark'],
+        [92, 62, 20, 20, 'ink'],
+        [97, 67, 7, 7, '#ffffff'],
+        [120, 62, 20, 20, 'ink'],
+        [125, 67, 7, 7, '#ffffff'],
+        [64, 90, 18, 10, 'blush', 0.75],
+        [122, 102, 24, 6, 'ink', 0.45],
+      ],
+      pixel: [
+        [70, 40, 80, 70, 'sky'],
+        [52, 58, 22, 34, 'skyDark'],
+        [146, 58, 22, 34, 'skyDark'],
+        [80, 88, 60, 22, 'skyBelly'],
+        [86, 58, 18, 18, 'ink'],
+        [116, 58, 18, 18, 'ink'],
+        [66, 86, 14, 9, 'blush', 0.8],
+        [132, 86, 14, 9, 'blush', 0.8],
+        [96, 94, 16, 6, 'ink', 0.4],
+      ],
     }
 
-    function PixelSVG() {
-      const cells = []
-      for (let row = 0; row < 8; row += 1) {
-        for (let col = 0; col < 8; col += 1) {
-          const body = row >= 2 && row <= 5 && col >= 1 && col <= 5
-          const tail = col === 6 && (row === 3 || row === 4)
-          if (!body && !tail) continue
-          cells.push(
-            h('rect', {
-              key: `${row}-${col}`,
-              x: 20 + col * 11,
-              y: 26 + row * 11,
-              width: 10,
-              height: 10,
-              fill: row <= 2 ? '#7dd3fc' : '#0ea5e9',
-            }),
-          )
-        }
-      }
+    function BlockArt({ id, label }) {
+      const blocks = BLOCKS[id] ?? BLOCKS.whale
       return h(
         'svg',
-        { className: 'dshc-art', viewBox: '0 0 120 120', role: 'img', 'aria-label': '像素鱼', shapeRendering: 'crispEdges' },
-        h('g', null, cells, h('rect', { x: 42, y: 60, width: 8, height: 8, fill: '#0b1220' }), h('rect', { x: 62, y: 60, width: 8, height: 8, fill: '#0b1220' })),
+        {
+          className: 'dshc-art',
+          viewBox: '0 0 200 150',
+          role: 'img',
+          'aria-label': label,
+          shapeRendering: 'crispEdges',
+        },
+        blocks.map(([x, y, w, ht, tint, opacity], index) =>
+          h('rect', {
+            key: index,
+            x,
+            y,
+            width: w,
+            height: ht,
+            fill: TINT[tint] ?? tint,
+            opacity: opacity ?? 1,
+          }),
+        ),
       )
     }
 
@@ -349,9 +323,9 @@ window.__ModuleLoader__.load({
       if (id.startsWith('skin:') && !failed) {
         return h(SkinImage, { file: id.slice(5), onFail: () => setFailed(true) })
       }
-      if (id === 'fish') return h(FishSVG, null)
-      if (id === 'pixel') return h(PixelSVG, null)
-      return h(WhaleSVG, null)
+      if (id === 'fish') return h(BlockArt, { id: 'fish', label: '像素肥鱼' })
+      if (id === 'pixel') return h(BlockArt, { id: 'pixel', label: '小方块' })
+      return h(BlockArt, { id: 'whale', label: '像素鲸' })
     }
 
     /* ── seat 1: the companion ────────────────────────────────────────────── */
